@@ -1,0 +1,19 @@
+# Python
+mnemos-backend/.venv/
+mnemos-backend/__pycache__/
+*.pyc
+
+# Swift
+.build/
+.swiftpm/
+
+# SAKSHI specific
+*.db
+*.db-journal
+*.log
+lancedb/
+spool/
+.mnemos/
+
+# macOS
+.DS_Store
