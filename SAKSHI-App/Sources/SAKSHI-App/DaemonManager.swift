@@ -110,6 +110,16 @@ class DaemonManager: ObservableObject {
         do {
             try process.run()
             processes.append(process)
+            
+            // Auto-restart logic
+            process.terminationHandler = { [weak self] terminatedProcess in
+                DispatchQueue.main.async {
+                    guard let self = self, self.isRunning else { return }
+                    print("Process \(executableURL.lastPathComponent) exited unexpectedly. Restarting...")
+                    self.processes.removeAll { $0 == terminatedProcess }
+                    self.startProcess(executableURL: executableURL, arguments: arguments, currentDirectory: currentDirectory, logFileName: logFileName)
+                }
+            }
         } catch {
             print("Failed to start process \(executableURL.lastPathComponent): \(error)")
         }
