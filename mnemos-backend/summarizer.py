@@ -10,7 +10,8 @@ db = lancedb.connect(DB_URI)
 
 def get_or_create_table():
     try:
-        tables = set(db.list_tables())
+        resp = db.list_tables()
+        tables = set(getattr(resp, "tables", resp))
     except AttributeError:
         tables = set(db.table_names())
     if "activity_summaries" not in tables:

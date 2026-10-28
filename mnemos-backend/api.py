@@ -29,9 +29,11 @@ class ContextResult(BaseModel):
     score: float
 
 def _table_names(db) -> set:
-    """lancedb >= 0.20 deprecates table_names(); older builds only have it."""
+    """Handle lancedb API drift: 0.38+ returns a ListTablesResponse object."""
     try:
-        return set(db.list_tables())
+        resp = db.list_tables()
+        tables = getattr(resp, "tables", resp)
+        return set(tables)
     except AttributeError:
         return set(db.table_names())
 
