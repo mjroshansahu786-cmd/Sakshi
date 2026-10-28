@@ -25,7 +25,7 @@ class VisionOCR {
                 let text = observations.compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n")
                 continuation.resume(returning: text)
             }
-            request.recognitionLevel = .accurate
+            request.recognitionLevel = .fast
             request.usesLanguageCorrection = true
             
             let handler = VNImageRequestHandler(cgImage: image, options: [:])

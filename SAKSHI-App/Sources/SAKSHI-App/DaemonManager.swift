@@ -83,15 +83,8 @@ final class DaemonManager: ObservableObject {
             while !Task.isCancelled {
                 let frameTime = Date()
 
-                if !CGPreflightScreenCaptureAccess() {
-                    print("[SAKSHI] Screen Recording permission missing — prompting (System Settings → Privacy & Security → Screen Recording)")
-                    CGRequestScreenCaptureAccess()
-                    await self?.reportPermissionMissing(true)
-                    try? await Task.sleep(nanoseconds: 15_000_000_000)
-                    continue
-                }
-                await self?.reportPermissionMissing(false)
-
+                // Attempt the capture regardless of preflight — some macOS
+                // versions report stale permission state via CGPreflight.
                 if let image = capture.captureFrame() {
                     if let text = await ocr.extractText(from: image) {
                         // AppKit APIs (frontmost app, AX window title) must run on the main actor
@@ -106,13 +99,23 @@ final class DaemonManager: ObservableObject {
                         )
                         SpoolWriter.write(payload: payload, audioData: nil)
                         print("[SAKSHI] Captured frame (\(text.count) OCR chars) — \(metadata.appName)")
+                        if text.isEmpty {
+                            ScreenCapture.dumpFrame(image)
+                        }
                         await self?.reportCapture(at: frameTime, characters: text.count)
                     } else {
                         await self?.reportCaptureSkipped()
                     }
                 } else {
-                    print("[SAKSHI] Frame capture returned nil (check Screen Recording permission)")
-                    await self?.reportCaptureFailed()
+                    let hasPermission = CGPreflightScreenCaptureAccess()
+                    if !hasPermission {
+                        print("[SAKSHI] Screen Recording permission missing — prompting (System Settings → Privacy & Security → Screen Recording)")
+                        CGRequestScreenCaptureAccess()
+                        await self?.reportPermissionMissing(true)
+                    } else {
+                        print("[SAKSHI] Frame capture returned nil despite permission — check display state")
+                        await self?.reportCaptureFailed()
+                    }
                 }
 
                 let elapsed = Date().timeIntervalSince(frameTime)

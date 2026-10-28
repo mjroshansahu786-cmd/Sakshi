@@ -3,6 +3,8 @@ import ScreenCaptureKit
 import CoreGraphics
 import OSLog
 import AVFoundation
+import ImageIO
+import UniformTypeIdentifiers
 
 class ScreenCapture: NSObject, SCStreamOutput {
     let logger = Logger(subsystem: "com.mnemos", category: "ScreenCapture")
@@ -10,6 +12,18 @@ class ScreenCapture: NSObject, SCStreamOutput {
     private var audioData = NSMutableData()
     private var audioFile: AVAudioFile?
     private var audioFileURL: URL?
+
+    /// Dumps a captured frame as PNG (diagnostics for empty-OCR frames).
+    static func dumpFrame(_ image: CGImage, fileName: String = "debug_frame.png") {
+        let logsDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".mnemos/logs")
+        try? FileManager.default.createDirectory(at: logsDir, withIntermediateDirectories: true)
+        let url = logsDir.appendingPathComponent(fileName)
+        guard let dest = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil) else { return }
+        CGImageDestinationAddImage(dest, image, nil)
+        CGImageDestinationFinalize(dest)
+        print("[SAKSHI] Dumped frame to \(url.path) (\(image.width)x\(image.height))")
+    }
 
     /// Capture all active displays and stitch them together into one image.
     /// Thread-safe: pure CoreGraphics, called from the background capture loop.
@@ -19,7 +33,8 @@ class ScreenCapture: NSObject, SCStreamOutput {
         let err = CGGetActiveDisplayList(10, &activeDisplays, &displayCount)
 
         if err != .success || displayCount == 0 {
-            logger.error("CGGetActiveDisplayList failed: \(err.rawValue)")
+            logger.error("CGGetActiveDisplayList failed: \(err.rawValue), count=\(displayCount)")
+            print("[SAKSHI] CGGetActiveDisplayList failed: err=\(err.rawValue) count=\(displayCount)")
             return nil
         }
 
@@ -33,6 +48,8 @@ class ScreenCapture: NSObject, SCStreamOutput {
                 images.append(image)
                 totalWidth += image.width
                 maxHeight = max(maxHeight, image.height)
+            } else {
+                print("[SAKSHI] CGDisplayCreateImage returned nil for display \(displayID)")
             }
         }
 
