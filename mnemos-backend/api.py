@@ -28,17 +28,44 @@ class ContextResult(BaseModel):
     summary_crux: str
     score: float
 
+def _table_names(db) -> set:
+    """lancedb >= 0.20 deprecates table_names(); older builds only have it."""
+    try:
+        return set(db.list_tables())
+    except AttributeError:
+        return set(db.table_names())
+
+def _sqlite_stats() -> dict:
+    try:
+        import sqlite3
+        conn = sqlite3.connect(os.path.expanduser("~/.mnemos/mnemos.db"), timeout=2)
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM activity_raw_logs")
+        raw = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM activity_raw_logs WHERE is_summarized = 0")
+        pending = cur.fetchone()[0]
+        conn.close()
+        return {"raw_events": raw, "pending_summaries": pending}
+    except Exception:
+        return {"raw_events": 0, "pending_summaries": 0}
+
 @app.get("/status")
 def status():
-    return {"status": "ok", "service": "mnemos-backend"}
+    payload = {"status": "ok", "service": "mnemos-backend"}
+    try:
+        payload["ollama"] = bool(Client(host='http://127.0.0.1:11434').list())
+    except Exception:
+        payload["ollama"] = False
+    payload.update(_sqlite_stats())
+    return payload
 
 @app.post("/query", response_model=List[ContextResult])
 def query_context(req: QueryRequest):
     try:
         DB_URI = os.path.expanduser("~/.mnemos/lancedb")
         db = lancedb.connect(DB_URI)
-        
-        if "activity_summaries" not in db.table_names():
+
+        if "activity_summaries" not in _table_names(db):
             return []
             
         table = db.open_table("activity_summaries")

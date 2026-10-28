@@ -4,47 +4,55 @@ import AppKit
 @main
 struct SakshiApp: App {
     @ObservedObject private var daemonManager = DaemonManager.shared
-    
-    // Use an AppDelegate to manage the lifecycle and global hotkeys without needing a main window
+    @AppStorage("MascotEnabled") private var mascotEnabled = true
+
+    // Use an AppDelegate to manage the lifecycle, global hotkeys and windows
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    
-    var body: some Scene {
-        // Main Workspace Window
-        WindowGroup {
-            TimelineView()
-                .environmentObject(daemonManager)
+
+    private var statusText: String {
+        if daemonManager.needsScreenPermission {
+            return "⚠ Needs Screen Recording permission"
         }
-        
-        // Menu Bar Item
+        return daemonManager.isRunning ? "● Monitoring Active" : "○ Paused"
+    }
+
+    var body: some Scene {
         MenuBarExtra {
-            VStack {
-                Text("SAKSHI Status: \(daemonManager.isRunning ? "● Monitoring Active" : "○ Paused")")
-                    .foregroundColor(daemonManager.isRunning ? .green : .red)
-                
-                Divider()
-                
-                Button(daemonManager.isRunning ? "Pause Recording" : "Resume Recording") {
-                    daemonManager.toggleDaemons()
-                }
-                
-                Button("Open Quick Search (⌃Space)") {
-                    appDelegate.showOverlay()
-                }
-                .keyboardShortcut(.space, modifiers: [.control])
-                
-                Divider()
-                
-                Button("Preferences...") {
-                    // Open preferences
-                }
-                
-                Button("Quit") {
-                    daemonManager.stopDaemons()
-                    NSApplication.shared.terminate(nil)
-                }
+            Text(statusText)
+                .foregroundColor(daemonManager.needsScreenPermission ? .orange : (daemonManager.isRunning ? .green : .red))
+
+            Divider()
+
+            Button(daemonManager.isRunning ? "Pause Recording" : "Resume Recording") {
+                daemonManager.toggleDaemons()
+            }
+
+            Button("Open Quick Search (⌃Space)") {
+                appDelegate.toggleQuickSearch()
+            }
+
+            Button("Show Timeline") {
+                appDelegate.openTimelineWindow()
+            }
+
+            Divider()
+
+            Button(mascotEnabled ? "Hide Companion" : "Show Companion") {
+                appDelegate.setMascotEnabled(!mascotEnabled)
+            }
+
+            Button("Preferences…") {
+                appDelegate.openPreferences()
+            }
+
+            Divider()
+
+            Button("Quit SAKSHI") {
+                appDelegate.quitApp()
             }
         } label: {
-            if let nsImage = NSImage(contentsOfFile: "/Applications/SAKSHI.app/Contents/Resources/MenuBarIconTemplate.png") {
+            if let url = Bundle.main.url(forResource: "MenuBarIconTemplate", withExtension: "png"),
+               let nsImage = NSImage(contentsOf: url) {
                 let _ = { nsImage.isTemplate = true }()
                 Image(nsImage: nsImage)
             } else {

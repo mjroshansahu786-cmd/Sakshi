@@ -9,7 +9,11 @@ DB_URI = os.path.expanduser("~/.mnemos/lancedb")
 db = lancedb.connect(DB_URI)
 
 def get_or_create_table():
-    if "activity_summaries" not in db.table_names():
+    try:
+        tables = set(db.list_tables())
+    except AttributeError:
+        tables = set(db.table_names())
+    if "activity_summaries" not in tables:
         # Schema uses a text vector embedding
         import pyarrow as pa
         schema = pa.schema([
@@ -48,13 +52,19 @@ def summarize_batch():
     end_time = logs[-1][1]
     
     # Combine logs into a prompt
-    prompt = """Analyze the following raw activity stream of the user's screen. 
+    prompt = """Analyze the following raw activity stream of the user's screen (captured via OCR). 
 Write a simple, human-readable summary of what the user was actually doing in this time period.
 Focus on:
 1. What exactly was the user working on?
-2. What changed from the previous snapshot? (e.g. did they write code, browse a specific website, edit a document?)
+2. What changed from the previous snapshot?
 
-Write it in extremely plain, easy-to-understand English. Keep it to 1-2 short, direct sentences. Do NOT use bullet points. Do not say 'The user is...', just describe the activity directly (e.g., 'Writing code to fix the menu bar icon in SAKSHI_App.swift').
+CRITICAL INSTRUCTIONS:
+- The OCR text contains EVERYTHING on the screen, including background UI noise like IDE file explorers (e.g. lists of files/folders), browser tabs, and menus.
+- DO NOT assume the user is "editing a file" just because you see filenames in the OCR. 
+- Look for active tasks: Are they chatting with an AI assistant? Are they typing commands in a terminal (like git push)? Are they watching a YouTube video? 
+- Focus ONLY on the primary active task. Ignore the background UI noise.
+
+Write it in extremely plain, easy-to-understand English. Keep it to 1-2 short, direct sentences. Do NOT use bullet points. Do not say 'The user is...', just describe the activity directly (e.g., 'Chatting with an AI assistant about GitHub setup' or 'Setting up a git repository in the terminal').
 
 Raw Activity Stream:
 """

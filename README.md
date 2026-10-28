@@ -31,7 +31,38 @@ SAKSHI is built with a decoupled, microservice-inspired architecture designed fo
 - **Privacy-First (100% Local)**: All OCR, LLM inference, and data storage happen locally on your Mac. No user data is ever sent to the cloud.
 - **Multi-Monitor Support**: Intelligently captures and stitches together activity across all active displays for a complete contextual picture.
 - **Smart Deduplication**: Only saves data when meaningful changes occur on-screen, drastically reducing CPU usage and disk space.
-- **Global Quick Search**: A Spotlight-style overlay allows instant retrieval of past contexts without breaking your workflow.
+- **Global Quick Search**: A Spotlight-style overlay (`⌃ + Space`) allows instant retrieval of past contexts without breaking your workflow.
+- **Sakshi Companion (Mascot)**: A floating, glowing eye-orb that lives on the right edge of your screen — see below.
+
+## 👁 The Sakshi Companion
+The mascot is a floating "witness" orb that watches over your timeline:
+
+- **Always on top**, across every Space and even full-screen apps.
+- **Click** the orb → toggles the Quick Search overlay.
+- **Right-click** → context menu (Timeline, Pause/Resume, Preferences, Hide, Quit).
+- **Drag** it anywhere; it snaps to the nearest screen edge on release.
+- **Auto-peek**: after a few idle seconds it tucks itself halfway into the edge so it never blocks your content; hover to wake it.
+- **Status-aware**: green pulsing halo while recording (with a ping ring on every capture + a blink every now and then), gray when paused, red when Screen Recording permission is missing.
+- Hover shows a status bubble: recording state + time since the last captured frame.
+- Its position and on/off state persist across launches (Preferences → Companion).
+
+## 🛠 Build & Install
+```bash
+cd Mnemos
+./scripts/build_app.sh                 # build + install + restart the LaunchAgent
+./scripts/build_app.sh --bundle-backend # also embed the Python backend (~1.3 GB) for a portable .app
+./scripts/build_app.sh --no-restart     # install without restarting the agent
+```
+
+The script assembles `/Applications/SAKSHI.app`, ad-hoc codesigns it, refreshes
+`~/Library/LaunchAgents/com.roshan.sakshi.plist` (app logs now go to
+`~/.mnemos/logs/app.log`, and the agent relaunches the app if it crashes).
+
+> **Note:** because the app is ad-hoc signed, reinstalling may require re-granting
+> **Screen Recording** and **Accessibility** permissions in System Settings →
+> Privacy & Security. The app detects missing permissions and shows it in the
+> menu bar and on the companion orb.
+
 
 ## 🗺 Product Roadmap
 - **Sprint 1 (Completed)**: Core daemon logic, SQLite ingestion, and baseline OCR.
